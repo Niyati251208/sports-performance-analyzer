@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sports Dashboard</title>
+  <style>
+   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap');
+
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body {
+  font-family: 'Poppins', sans-serif;
+  background: 
+    repeating-linear-gradient(
+      45deg, 
+      rgba(255,255,255,0.05) 0px, 
+      rgba(255,255,255,0.05) 2px, 
+      transparent 2px, 
+      transparent 40px
+    ),
+    linear-gradient(135deg, #0f2027, #203a43, #2c5364); /* sporty dark gradient */
+  min-height: 100vh;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+    header {
+      position: relative;
+      text-align: center;
+      margin: 40px 0 20px 0;
+    }
+    header h1 { font-size: 32px; margin-bottom:10px; }
+    header p { font-size:18px; color:#ddd; }
+
+    /* Profile Circle */
+    .profile-btn {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background: #fff;
+      color: #0072ff;
+      font-weight: bold;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      font-size: 18px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.3);
+      transition: 0.3s;
+      user-select: none;
+    }
+    .profile-btn:hover { 
+  transform: scale(1.1); 
+  box-shadow: 
+    0 0 12px rgba(0, 198, 255, 0.7),   /* cyan glow */
+    0 0 20px rgba(0, 114, 255, 0.6),   /* blue glow */
+    0 4px 12px rgba(0,0,0,0.4);        /* subtle depth */
+}
+
+    /* Dropdown Menu */
+    .dropdown {
+      display: none;
+      position: absolute;
+      top: 60px;
+      right: 20px;
+      background: #fff;
+      color: #333;
+      border-radius: 8px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+      overflow: hidden;
+      z-index: 1000;
+      width: 160px;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    .dropdown a {
+      display: block;
+      padding: 12px 15px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+      transition: 0.3s;
+    }
+    .dropdown a:hover {
+      background: #f0f0f0;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Dashboard */
+    .dashboard {
+      display:grid; 
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:30px; 
+      width:90%; 
+      max-width:1000px; 
+      margin:30px auto;
+    }
+
+    .sport-card {
+  padding: 30px 20px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  transition: 0.3s;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 180px;
+}
+
+.sport-card:nth-child(1) {
+  background: linear-gradient(135deg, #11998e, #38ef7d); /* Running - Green speed */
+}
+
+.sport-card:nth-child(2) {
+  background: linear-gradient(135deg, #ff512f, #dd2476); /* Long Jump - Red/Pink power */
+}
+
+.sport-card:nth-child(3) {
+  background: linear-gradient(135deg, #4776e6, #8e54e9); /* High Jump - Blue/Purple height */
+}
+
+.sport-card:nth-child(4) {
+  background: linear-gradient(135deg, #d4af37, #b87333); /* Shotput - Orange/Yellow strength */
+}
+.sport-card:hover { 
+  transform: translateY(-10px); 
+  box-shadow: 
+    0 0 20px rgba(0, 198, 255, 0.7),   /* cyan glow */
+    0 0 40px rgba(0, 114, 255, 0.5),   /* blue glow */
+    0 12px 30px rgba(0,0,0,0.6);       /* depth shadow */
+}
+
+    footer { margin:50px 0 20px 0; font-size:14px; color:#ccc; text-align:center; }
+
+    @media(max-width:500px){
+      .sport-card{ padding:20px 15px; min-height: 150px; }
+      header h1{ font-size:26px; }
+      header p{ font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="welcomeMsg">Welcome!</h1>
+    <p>Select a sport to record your performance</p>
+    <!-- Profile Button -->
+    <div class="profile-btn" id="profileBtn">U</div>
+    <!-- Dropdown Menu -->
+    <div class="dropdown" id="dropdownMenu">
+      <a href="uploads.html"> Uploads</a>
+      <a href="#" id="logoutLink"> Logout</a>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <div class="sport-card" onclick="goToSport('running.html')">
+      <h2> Running</h2>
+      <p>Running is a method of terrestrial locomotion by which humans and other animals move quickly on foot.</p>
+    </div>
+    <div class="sport-card" onclick="goToSport('longjump.html')">
+      <h2> Long Jump</h2>
+      <p>The long jump is a track and field event in which athletes combine speed, strength and agility in an attempt to leap as far as possible from a takeoff point.</p>
+    </div>
+    <div class="sport-card" onclick="goToSport('highjump.html')">
+      <h2> High Jump</h2>
+      <p>The high jump is a track and field event in which competitors must jump unaided over a horizontal bar placed at measured heights without dislodging it.</p>
+    </div>
+    <div class="sport-card" onclick="goToSport('shotput.html')">
+      <h2> Shotput</h2>
+      <p>The shot put is a track-and-field event involving "putting" (throwing) a heavy spherical ball—the shot—as far as possible.</p>
+    </div>
+  </div>
+
+  <footer>&copy; 2025 Sports Talent Platform</footer>
+
+  <script>
+    // Check login
+    const user = JSON.parse(localStorage.getItem("user"));
+    if(!user){
+      window.location.href="login.html";
+    } else {
+      document.getElementById("welcomeMsg").textContent = `Welcome, ${user.name}!`;
+      document.getElementById("profileBtn").textContent = user.name.charAt(0).toUpperCase();
+    }
+
+    function goToSport(page){ window.location.href = page; }
+
+    // Toggle dropdown
+    const profileBtn = document.getElementById("profileBtn");
+    const dropdownMenu = document.getElementById("dropdownMenu");
+
+    profileBtn.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      dropdownMenu.style.display = dropdownMenu.style.display === "block" ? "none" : "block";
+    });
+
+    // Logout
+    document.getElementById("logoutLink").addEventListener("click", (e)=>{
+      e.preventDefault();
+      localStorage.removeItem("user");
+      window.location.href = "login.html";
+    });
+
+    // Hide dropdown if clicked outside
+    window.addEventListener("click", (e)=>{
+      if(!profileBtn.contains(e.target) && !dropdownMenu.contains(e.target)){
+        dropdownMenu.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Scores</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, Roboto, "Segoe UI", Arial;
+      margin:0; padding:20px;
+      background: linear-gradient(180deg,#0ea5e9,#0369a1);
+      color:#fff;
+      min-height:100vh;
+    }
+    .container { max-width:800px; margin:0 auto; }
+    h1 { margin-bottom:8px; font-size:28px; }
+    p.lead { color:#e6f7ff; margin-bottom:20px; }
+    .score-card {
+      background: rgba(255,255,255,0.08);
+      padding:20px;
+      border-radius:14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      margin-bottom:20px;
+    }
+    .metric {
+      margin: 8px 0;
+      font-size:18px;
+      font-weight:600;
+      color:#fff;
+    }
+    nav {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    a.back {
+      color:#fff;
+      text-decoration:none;
+      font-weight:600;
+      background:rgba(255,255,255,0.1);
+      padding:8px 14px;
+      border-radius:10px;
+      transition:0.3s;
+    }
+    a.back:hover { background:rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a class="back" href="uploads.html">⬅ Back to Uploads</a>
+      <div id="userInfo"></div>
+    </nav>
+
+    <h1>Scores</h1>
+    <p class="lead">Performance metrics for your selected sport.</p>
+
+    <div id="scoreCard" class="score-card"></div>
+  </div>
+
+  <script>
+    // Get user from localStorage
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if(!user){ window.location.href = 'login.html'; }
+    document.getElementById('userInfo').textContent = `${user.name} • ${user.email}`;
+
+    // Read query parameters (sport + uploadId passed from uploads.html)
+    const params = new URLSearchParams(window.location.search);
+    const sport = params.get('sport');
+    const uploadId = params.get('id');
+
+    async function fetchScore(){
+      try {
+        const res = await fetch('/api/score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email, id: uploadId })
+        });
+        if(!res.ok) throw new Error("Failed to fetch score");
+        const data = await res.json();
+        return data;
+      } catch(e){
+        console.error(e);
+        return null;
+      }
+    }
+
+    function renderScore(data){
+      const card = document.getElementById('scoreCard');
+      if(!data){
+        card.innerHTML = "<p>No score data available.</p>";
+        return;
+      }
+
+      let html = `<h2>${sport.toUpperCase()}</h2>`;
+      if(sport === "running"){
+        html += `<div class="metric">Distance: ${data.distance || '—'} m</div>`;
+        html += `<div class="metric">Time: ${data.time || '—'} s</div>`;
+        html += `<div class="metric">Speed: ${data.speed || '—'} m/s</div>`;
+      }
+      else if(sport === "longjump"){
+        html += `<div class="metric">Distance Jumped: ${data.distance || '—'} m</div>`;
+      }
+      else if(sport === "shotput"){
+        html += `<div class="metric">Distance Thrown: ${data.distance || '—'} m</div>`;
+      }
+      else if(sport === "discusthrow"){
+        html += `<div class="metric">Distance Thrown: ${data.distance || '—'} m</div>`;
+      }
+      else {
+        html += `<div class="metric">No sport metrics available</div>`;
+      }
+
+      card.innerHTML = html;
+    }
+
+    (async ()=>{
+      const score = await fetchScore();
+      renderScore(score);
+    })();
+  </script>
+</body>
+</html>

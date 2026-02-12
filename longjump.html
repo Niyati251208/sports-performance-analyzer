@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Long Jump - Auto Distance Detection</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.8.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+body {
+  font-family:'Poppins';
+  text-align: center;
+  background: linear-gradient(135deg, #ff512f, #dd2476);
+  color: #fff;
+  min-height: 100vh;
+  padding: 20px;
+}
+header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:18px; flex-wrap:wrap; gap:10px;
+}
+header .user {
+  font-size:14px; background:rgba(255,255,255,0.15);
+  padding:6px 12px; border-radius:8px;
+}
+video, canvas {
+  margin-top: 15px;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 500px;
+  background: #000;
+}
+.controls { margin-top: 12px; }
+button, input[type=file] {
+  margin: 6px;
+  padding: 10px 16px;
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  background: #43a047;
+  color: white;
+}
+button.secondary { background:#1976d2; }
+button.danger { background:#ff6b6b; }
+button[disabled] { opacity:0.6; cursor:not-allowed; }
+#message { font-size: 18px; font-weight: bold; margin-top: 12px; }
+.save-area { margin-top: 14px; display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; }
+.param { background: rgba(255,255,255,0.12); padding:8px 12px; border-radius:8px; font-weight:600; }
+a.back { display:inline-block; color:#fff; text-decoration:none; margin-top:16px; background:rgba(255,255,255,0.15); padding:6px 12px; border-radius:6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1> Long Jump </h1>
+  <div class="user" id="userInfo"></div>
+</header>
+
+<p>Use webcam or upload a video to automatically calculate jump distance.</p>
+
+<input type="file" id="videoInput" accept="video/*"><br>
+
+<video id="video" autoplay muted playsinline></video>
+<canvas id="output" style="display:none;"></canvas><br>
+
+<div class="controls">
+  <button id="startBtn">Start Webcam Tracking</button>
+  <button id="stopBtn" style="display:none;" class="secondary">Stop Tracking</button>
+  <button id="saveBtn" class="secondary" disabled>Save Video & Results</button>
+  <button id="clearBtn" class="danger" style="display:none;">Clear</button>
+</div>
+
+<p id="message">Loading PoseNet model…</p>
+
+<div class="save-area">
+  <div class="param">Estimated Distance: <span id="distanceVal">—</span> <span id="unitVal">m</span></div>
+</div>
+
+<a class="back" href="home.html">⬅ Back to Home</a>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('output');
+const ctx = canvas.getContext('2d');
+const message = document.getElementById('message');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const saveBtn = document.getElementById('saveBtn');
+const clearBtn = document.getElementById('clearBtn');
+const distanceVal = document.getElementById('distanceVal');
+const fileInput = document.getElementById('videoInput');
+const user = JSON.parse(localStorage.getItem("user") || "null");
+
+if(!user){ window.location.href = "login.html"; }
+else document.getElementById("userInfo").textContent = `${user.name} • ${user.email}`;
+
+let net;
+let tracking = false;
+let startX = null;
+let endX = null;
+let recordedBlob = null;
+let selectedFile = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let estimatedDistance = null;
+
+// Load PoseNet
+posenet.load().then(m => {
+  net = m;
+  message.textContent = ' PoseNet ready. Choose webcam or upload a video.';
+}).catch(err => {
+  console.error(err);
+  message.textContent = ' Error loading model.';
+});
+
+// Webcam start
+async function startWebcam(){
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
+    video.srcObject = stream;
+    await video.play();
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    if(window.MediaRecorder){
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => { if(e.data.size) recordedChunks.push(e.data); };
+      mediaRecorder.onstop = () => { recordedBlob = new Blob(recordedChunks, { type:'video/webm' }); };
+      mediaRecorder.start();
+    }
+  } catch(err){
+    console.error(err);
+    message.textContent = ' Webcam not accessible.';
+  }
+}
+
+// Track jump
+async function trackJump(){
+  if(!tracking || !net) return;
+  const pose = await net.estimateSinglePose(video, { flipHorizontal:false });
+  const ankle = pose.keypoints.find(p => (p.part==="leftAnkle"||p.part==="rightAnkle") && p.score>0.5);
+  if(ankle){
+    if(startX === null) startX = ankle.position.x;
+    endX = ankle.position.x;
+  }
+  requestAnimationFrame(trackJump);
+}
+
+// Calculate distance
+function calculateDistance(){
+  if(startX===null || endX===null) return 0;
+  const dx = Math.abs(endX - startX);
+  const metersPerPixel = 5 / (canvas.width||640); // assume ~5m per width
+  return dx * metersPerPixel;
+}
+
+// Button events
+startBtn.addEventListener('click', async ()=>{
+  selectedFile=null; recordedBlob=null; startX=null; endX=null; estimatedDistance=null;
+  distanceVal.textContent="—";
+  message.textContent="Recording… Perform a jump!";
+  startBtn.style.display="none"; stopBtn.style.display="inline-block"; clearBtn.style.display="none"; saveBtn.disabled=true;
+  await startWebcam(); tracking=true; trackJump();
+});
+
+stopBtn.addEventListener('click', ()=>{
+  tracking=false;
+  if(mediaRecorder && mediaRecorder.state!=="inactive") mediaRecorder.stop();
+  if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+
+  estimatedDistance = calculateDistance();
+  if(estimatedDistance>0){
+    distanceVal.textContent = estimatedDistance.toFixed(2);
+    message.textContent = ` Distance: ${estimatedDistance.toFixed(2)} m`;
+    saveBtn.disabled=false;
+  } else {
+    message.textContent=" No jump detected.";
+  }
+  startBtn.style.display="inline-block"; stopBtn.style.display="none"; clearBtn.style.display="inline-block";
+});
+
+// File upload
+fileInput.addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  selectedFile=file; startX=null; endX=null; estimatedDistance=null;
+  const url=URL.createObjectURL(file); video.srcObject=null; video.src=url; await video.play();
+  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
+  message.textContent="Analyzing video…";
+  const step=0.2; let t=0;
+  while(t<video.duration){
+    video.currentTime=t; await new Promise(r=> video.onseeked=r);
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const pose=await net.estimateSinglePose(canvas,{flipHorizontal:false});
+    const ankle=pose.keypoints.find(p=>(p.part==="leftAnkle"||p.part==="rightAnkle")&&p.score>0.5);
+    if(ankle){ if(startX===null) startX=ankle.position.x; endX=ankle.position.x; }
+    t+=step;
+  }
+  estimatedDistance=calculateDistance();
+  if(estimatedDistance>0){ distanceVal.textContent=estimatedDistance.toFixed(2); message.textContent=`Distance: ${estimatedDistance.toFixed(2)} m`; saveBtn.disabled=false; }
+  else message.textContent=" Could not detect jump.";
+  clearBtn.style.display="inline-block";
+});
+
+// Clear
+clearBtn.addEventListener('click', ()=>{
+  if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+  video.pause(); video.removeAttribute("src"); video.load();
+  fileInput.value=""; startX=null; endX=null; estimatedDistance=null; recordedBlob=null; selectedFile=null;
+  distanceVal.textContent="—"; message.textContent="Cleared. Choose webcam or upload."; saveBtn.disabled=true; clearBtn.style.display="none";
+});
+
+// Save
+saveBtn.addEventListener('click', async ()=>{
+  if(!estimatedDistance){ alert("No result to save."); return; }
+  saveBtn.disabled=true; saveBtn.textContent="Saving…";
+  const form=new FormData();
+  if(selectedFile) form.append("video",selectedFile,selectedFile.name);
+  else if(recordedBlob) form.append("video",recordedBlob,`longjump_${Date.now()}.webm`);
+  form.append("user",JSON.stringify(user));
+  form.append("sport","longjump");
+  form.append("estimated_distance",estimatedDistance.toFixed(2));
+  form.append("distance_unit","m");
+  try{
+    const res=await fetch("/upload/longjump",{method:"POST",body:form});
+    const j=await res.json();
+    if(j.success){ message.textContent=" Saved. Redirecting…"; setTimeout(()=>window.location.href="uploads.html",1000); }
+    else throw new Error(j.message||"Server error");
+  }catch(e){ alert("Save failed: "+e.message); saveBtn.disabled=false; saveBtn.textContent="Save Video & Results"; }
+});
+</script>
+</body>
+</html>

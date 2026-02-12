@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>My Uploads</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #0072ff;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width:980px; margin:0 auto; }
+    h1 { margin-bottom:8px; font-size:28px; }
+    p.lead { color:#e6f7ff; margin-bottom:20px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:18px; }
+    .card {
+      background: rgba(255,255,255,0.08);
+      padding:14px;
+      border-radius:14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      display:flex; flex-direction:column; gap:10px;
+      transition:0.3s;
+    }
+    .card:hover { transform: translateY(-4px); }
+    video { width:100%; border-radius:10px; background:#000; }
+    .meta { font-size:14px; line-height:1.4; color:#eaf6ff; }
+    .metrics { margin: 8px 0; display:flex; flex-wrap:wrap; gap:8px; }
+    .badge {
+      background: rgba(255,255,255,0.15);
+      padding:6px 12px;
+      border-radius:999px;
+      font-weight:600; font-size:13px;
+    }
+    .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:8px; flex-wrap:wrap; }
+    .btn {
+      background:#ff6b6b; border:none; color:#fff;
+      padding:8px 12px; border-radius:8px; cursor:pointer;
+      font-weight:600; font-size:14px; transition:0.3s;
+    }
+    .btn:hover { opacity:0.85; }
+    .btn.secondary {
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.25);
+    }
+    .empty {
+      text-align:center; padding:40px;
+      color:#dff4ff; font-size:16px;
+    }
+    nav {
+      display:flex; justify-content:space-between;
+      align-items:center; margin-bottom:18px;
+      flex-wrap:wrap; gap:10px;
+    }
+    .nav-links { display:flex; gap:10px; flex-wrap:wrap; }
+    a.back {
+      color:#fff; text-decoration:none; font-weight:600;
+      background:rgba(255,255,255,0.1);
+      padding:8px 14px; border-radius:10px; transition:0.3s;
+    }
+    a.back:hover { background:rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <div class="nav-links">
+        <a class="back" href="home.html">⬅ Home</a>
+      </div>
+      <div id="userInfo"></div>
+    </nav>
+
+    <h1>My Uploads</h1>
+    <p class="lead">Your uploaded videos and detected results (speed, distance, height).</p>
+
+    <div id="uploadsGrid" class="grid"></div>
+    <div id="emptyState" class="empty" style="display:none;">
+      No uploads yet. Go to a sport page and upload a video.
+    </div>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if(!user){ window.location.href = 'login.html'; }
+    document.getElementById('userInfo').textContent = `${user.name} • ${user.email}`;
+
+    async function fetchUploads(){
+      try {
+        const res = await fetch('/api/uploads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email })
+        });
+        if(!res.ok) throw new Error('Failed to load uploads');
+        const data = await res.json();
+        return data.uploads || [];
+      } catch (err) {
+        console.error(err);
+        return [];
+      }
+    }
+
+    function makeCard(item){
+      const div = document.createElement('div');
+      div.className = 'card';
+
+      const videoEl = document.createElement('video');
+      videoEl.controls = true;
+      videoEl.src = item.filepath ? `/${item.filepath.replace(/^\/+/, '')}` : `/uploads/${item.filename}`;
+      videoEl.preload = 'metadata';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `
+        <div><strong>Sport:</strong> ${item.sport || '—'}</div>
+        <div><strong>Uploaded:</strong> ${new Date(item.created_at || item.date || item.date_uploaded).toLocaleString()}</div>
+      `;
+
+      const metrics = document.createElement('div');
+      metrics.className = 'metrics';
+      if(item.metric_name && item.metric_value != null){
+        metrics.appendChild(makeBadge(item.metric_name, item.metric_value, item.metric_unit));
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      const viewBtn = document.createElement('button');
+      viewBtn.className = 'btn secondary';
+      viewBtn.textContent = '▶ Open';
+      viewBtn.onclick = ()=>{ videoEl.scrollIntoView({behavior:'smooth'}); videoEl.play(); };
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn';
+      delBtn.textContent = '🗑 Delete';
+      delBtn.onclick = ()=> deleteUpload(item.id || item.filename, div);
+
+      // Only keep Open and Delete
+      actions.append(viewBtn, delBtn);
+
+      div.append(videoEl, meta, metrics, actions);
+      return div;
+    }
+
+    function makeBadge(name,value,unit){
+      const b = document.createElement('div');
+      b.className='badge';
+      b.textContent = unit ? `${name}: ${value} ${unit}` : `${name}: ${value}`;
+      return b;
+    }
+
+    async function deleteUpload(id, cardEl){
+      if(!confirm('Delete this upload?')) return;
+      try {
+        const res = await fetch('/api/delete-upload', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ id, email: user.email })
+        });
+        const j = await res.json();
+        if(j.success){
+          cardEl.remove();
+          if(!document.querySelectorAll('.card').length) showEmpty(true);
+        } else {
+          alert('Could not delete: ' + (j.message || 'server error'));
+        }
+      } catch(e){
+        console.error(e); alert('Delete failed');
+      }
+    }
+
+    function showEmpty(show){
+      document.getElementById('emptyState').style.display = show ? 'block' : 'none';
+      document.getElementById('uploadsGrid').style.display = show ? 'none' : 'grid';
+    }
+
+    (async ()=>{
+      const uploads = await fetchUploads();
+      if(!uploads.length){ showEmpty(true); return; }
+      showEmpty(false);
+      const grid = document.getElementById('uploadsGrid');
+      uploads.forEach(u => grid.appendChild(makeCard(u)));
+    })();
+  </script>
+</body>
+</html>
