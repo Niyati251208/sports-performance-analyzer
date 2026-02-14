@@ -76,4 +76,4 @@ Through this project, I learned:
 ---
 
 ## 👩‍💻 Author
-Your Name
+Niyati More
